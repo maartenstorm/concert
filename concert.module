@@ -1,0 +1,702 @@
+<?php
+
+/**
+ * @file
+ * Concert - een concertagenda voor Drupal
+ */
+ 
+ require_once('concert_functions.inc');
+ require_once('concert_theme_table.inc');
+ 
+ //drupal_add_js('jquery_table.js', 'file');
+ 
+ // Constants below should be variable to be set from administration form of this module.
+ define("OPERATOR_COMING", ">=");
+ define("OPERATOR_PAST", "<");
+ define("PAGE_CONCERTS_LIMIT", 0);
+ define("CONCERT_LIST_DATE_FORMAT_MONTH", "F");
+ define("HOUR_MINUTE_SEPERATOR", ":");
+ define("CONCERT_LIST_DATE_STYLE", "custom");
+ define("CONCERT_LIST_DATE_FORMAT", "d F G:i");
+ define("CONCERT_LIST_TABLE_HEADER", TRUE);
+ define("CONCERT_LIST_TABLE_ZEBRA", TRUE);
+ define("CONCERT_LIST_MONTH_LOWERCASE", TRUE);
+ define("CONCERT_VENUE_UNKNOWN_STRING", "Unknown");
+ 
+ /**
+  * implements hook_menu().
+  */
+function concert_menu() {
+  $items['concerts'] = array(
+	'title' => 'Concert',
+	'page callback' => 'concert_page',
+    'access arguments' => array('access content'),
+	'type' => MENU_SUGGESTED_ITEM,
+	 );
+	  
+ $items['concerts/archive'] = array(
+	'title' => 'Concert Archive',
+	'page callback' => 'concert_page',
+	'page arguments' => array(1),
+	'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+    );
+	  
+ $items['concerts/add'] = array(
+	'title' => 'Add a concert',
+	'page callback' => 'drupal_get_form',
+	'page arguments' => array('concert_form'),
+	'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+    );
+	  
+  $items['concerts/list'] = array(
+	'title' => 'View upcoming concerts',
+	'page callback' => 'concert_page',
+	'page arguments' => array(0),
+	'access arguments' => array('access content'),
+	'type' => MENU_LOCAL_TASK,
+	);
+  
+  return $items;
+}
+
+function concert_page($arg = NULL) {
+  $renderable_array = array();
+  
+  $time_stamp = time();
+  $now = date('o-m-d',$time_stamp)."T".date('H:i:s',$time_stamp);
+  
+  $archive = FALSE;
+ 
+   
+  if ($arg == "archive") {
+	 
+    $archive = TRUE;
+    $operator = OPERATOR_PAST;
+	$order = 'DESC';
+  } else {
+	
+    $archive = FALSE;
+    $operator = OPERATOR_COMING;
+	$order = 'ASC';
+  }
+  
+  $renderable_array['explanation'] = array(
+    '#markup' => t("Concert nodes will be displayed here"),
+    '#prefix' => '<strong>',
+    '#suffix' => '</strong>',
+    );
+  
+  //$archive = FALSE;
+  $years_result = concert_get_years($archive, $now); // $archive werkt niet???
+  
+    /**
+    if ($arg == "archive") {
+      $sql = 'SELECT nid FROM {node} n JOIN {field_data_concert_date} f ON n.nid = f.entity_id WHERE n.type = :type AND n.status = :status AND f.concert_date_value < :now ORDER BY f.concert_date_value DESC'; 
+    } else {
+      $sql = 'SELECT nid FROM {node} n JOIN {field_data_concert_date} f ON n.nid = f.entity_id WHERE n.type = :type AND n.status = :status AND f.concert_date_value >= :now ORDER BY f.concert_date_value ASC'; 
+    }
+    **/
+    
+  
+  /**
+  if ($arg == "archive") {
+    $years_query = 'SELECT EXTRACT(YEAR FROM concert_date_value) AS year FROM {field_data_concert_date} d WHERE d.concert_date_value < :now GROUP BY year ORDER BY d.concert_date_value DESC';
+  } else { 
+    $years_query = 'SELECT EXTRACT(YEAR FROM concert_date_value) AS year FROM {field_data_concert_date} d WHERE d.concert_date_value >= :now GROUP BY year ORDER BY d.concert_date_value ASC';
+  } // TODO: dynamic query see http://drupal.org/node/310075#ordering
+  
+  $years_result = db_query($years_query,
+      array(
+	':now' => $now,
+        )
+      );
+  **/
+  
+  foreach ($years_result as $years_row) {
+    $renderable_array[] = array(
+      '#markup' => $years_row->year,
+      '#prefix' => '<p><h1>',
+      '#suffix' => '</h1></p>',
+      );
+	
+	$result = concert_get_concerts($operator, $order, PAGE_CONCERTS_LIMIT, $years_row->year);
+	
+	$header = array(
+	  array('data' => 'Datum',
+			'width' => '20%'),
+	  array('data' => 'Informatie',
+			'width' => '55%'),
+	  array('data' => 'Lokatie',
+			'width' => '25%'),
+	  );
+	  
+	$rows = array();
+	  foreach ($result as $row) {
+		$dateObject = new DateObject($row->concert_date_value, NULL, 'Y-m-d\TH:i:s');
+		$dateArray = $dateObject->toArray();
+	  
+		if (isset($row->nid)) {
+		  $node = node_load($row->nid);
+		}
+  
+		$date_cell = array();
+	  
+		if (CONCERT_LIST_DATE_STYLE == "custom") {
+		  $month = date_format_date($dateObject, 'custom', CONCERT_LIST_DATE_FORMAT_MONTH);
+		  if (CONCERT_LIST_MONTH_LOWERCASE) {
+			$month = strtolower($month);
+		  }
+		  
+		  $items = array(
+			array(
+			  'data' => $dateArray['day'],
+			  'class' => array('date_cell' => 'day')
+			),
+			array(
+			  'data' => $month,
+			  'class' => array('date_cell' => 'month')
+			),
+		  );
+			  
+		  if ($node->concert_time_string) {
+			// TODO: hier geen tijd weergeven, string weergeven bovenaan informatiecell
+			$items[] = array(
+			  'data' => $node->concert_time_string['und'][0]['value'],
+			  'class' => array('date_cell' => 'time_string')
+			);
+		  } else {
+			$items[] = array(
+			  'data' => $dateArray['hour'] . HOUR_MINUTE_SEPERATOR . $dateArray['minute'],		  
+			  'class' => array('date_cell' => 'time')
+			);
+		  }
+		  
+		  $date_cell = array(
+			  'data' => array(
+				'#theme' => 'item_list',
+				'#items' => $items,
+				'#attributes' => array('class' => array('concert-list-date')),
+			  ),
+			  
+		  );
+		  
+		} else {
+		  $items = 
+			format_date(strtotime($row->concert_date_value), 'custom', CONCERT_LIST_DATE_FORMAT);	
+		  
+		  $date_cell = array(
+			  'data' => array(
+				'#type' => 'markup',
+				'#markup' => $items,
+				'#prefix' => '<div class="date">',
+				'#suffix' => '</div>'
+			  ),
+			 
+		  );
+		}
+	  
+	  
+	  $info_cell = array();
+	  // TODO: location in 2nd column, city in 3rd.
+	  $location = CONCERT_VENUE_UNKNOWN_STRING;
+	  $venue = concert_get_venue($node->nid);
+	  
+	  if (isset($venue[0]->concert_venue_check) && $venue[0]->concert_venue_check == 0) {
+		if ($venue[0]->concert_venue_node != "0") {
+		  $venue_node = node_load($venue[0]->concert_venue_node); // if... ?
+		  if ($venue_node->title) {
+			$location = $venue_node->title;
+		  } else if ($venue_node->location && $venue_node->city) {
+			$location = $venue_node->venue_location[0]['und']['value'] . "<br/>" . $venue_node->venue_city[0]['und']['value'];
+		  }
+		}
+	  } else if (isset($venue[0]->concert_venue_check) && $venue[0]->concert_venue_check == 1) {
+		  $location = $venue[0]->concert_venue_location  . "<br/>" . $venue[0]->concert_venue_city;
+	  }
+	  
+	  $rows[] = array(
+		'data' => array(
+		   $date_cell,
+		   l($row->title, 'node/'. $row->nid),
+		   $location,
+		  ),
+		'class' => array('parent', 'expand'),
+		'no_striping' => FALSE,
+	  );
+	  
+	  $rows[] = array(
+		'data' => array(
+		  '',
+		  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi dignissim gravida vulputate. Nulla tempor, dui nec luctus gravida, ante justo dapibus libero, quis fermentum dui nisl a lorem. In hac habitasse platea dictumst. Donec ut luctus leo. Donec et consequat dui. Sed dapibus consectetur sapien gravida dignissim. Duis fermentum posuere ullamcorper.
+
+Sed vel libero sit amet est semper mattis eu et tortor. Aenean turpis dolor, suscipit sed interdum eu, varius in quam. Curabitur imperdiet porttitor urna vel auctor. Mauris faucibus, lectus et adipiscing lobortis, ligula mi posuere turpis, sed elementum dui erat nec orci. Morbi in tellus sit amet dolor ultrices pretium quis cursus massa. Pellentesque a massa nisi, vitae semper diam. Proin molestie metus ut odio gravida dignissim. Integer ante enim, tincidunt et feugiat sit amet, pulvinar a ligula. Suspendisse placerat tincidunt elementum. In cursus nisi non leo fringilla ut dictum enim volutpat. Aenean a leo quis tellus aliquam tempus. Mauris interdum feugiat pharetra. Integer rutrum ipsum sit amet sem consectetur laoreet pellentesque lorem laoreet. Cras quis suscipit lectus.',
+		  '',
+		),
+		'class' => array('hidden'),
+		'no_striping' => FALSE,
+	  );
+	}
+	
+	// see http://drupal.org/node/1526940
+	$table = array(
+	  '#theme' => 'table',
+	  //'#header' => $header,
+	  '#rows' => $rows,
+	  '#attributes' => array('class' => array('concert-list-table')),
+	  );
+	
+	if (CONCERT_LIST_TABLE_HEADER) {
+	  $table['#header'] = $header;
+	}
+	
+    $renderable_array['table_'.$years_row->year] = $table;    
+  }
+  
+  return $renderable_array; 
+}
+
+function concert_entity_info_alter(&$entity_info) {
+  $entity_info['node']['view modes']['concert_list'] = array(
+    'label' => t('Concert list'),
+     'custom settings' => TRUE,
+   );
+}
+
+/**
+ * Implement hook_help()
+ */
+function concert_help($path, $arg) {
+    switch ($path) {
+      case 'concerts' :
+        return "<p>" . t("The concert module provides a custom node type. You can create new Concert nodes using the <a href='!nodeadd'>node add form</a>.",
+        array('!nodeadd' => url('node/add/concert'))) . "</p>";
+      }
+}
+
+/**
+function concert_theme() {
+  return array(
+	'concert_table' => array(
+	  'arguments' => array('variables' => NULL),
+	  'file' => 'concert_theme_table.inc',
+	),
+  );
+}
+**/
+
+// add module folder to theme registry
+function concert_theme_registry_alter(&$theme_registry) {
+  $mod_path = drupal_get_path('module', 'concert');
+  $theme_registry_copy = $theme_registry;
+  _theme_process_registry($theme_registry_copy, 'phptemplate', 'theme_engine', 'pow', $mod_path);
+  $theme_registry += array_diff_key($theme_registry_copy, $theme_registry);
+  $hooks = array('node');
+  foreach ($hooks as $h) {
+    _concert_insert_after_first_element($theme_registry[$h]['theme_paths'], $mod_path);
+  }
+  
+  // override theme_table()
+  if (isset($theme_registry['table'])) {
+	$theme_registry['table']['function'] = 'theme_concert_table';
+  }
+}
+
+function _concert_insert_after_first_element(&$a, $element) {
+  if(is_array($a)) {
+    $first_element = array_shift($a);
+    array_unshift($a, $first_element, $element);
+  } 
+}
+
+/**
+ * Implements hook_form_alter()
+ *
+ * hide the concert_year field from the form
+ */
+function concert_form_alter(&$form, &$form_state, $form_id) {
+  
+  // hide extraneous options in the node form for nodetype nodes  
+  if($form_id == "concert_node_form") {
+	$form['title']['#title'] = t('New Form Title');
+	
+	$node = $form['#node'];
+	dpm($node);
+	dpm($form);
+	dpm($form_state);
+	//echo "<pre>";
+	//print_r($form_state['values']);
+	//echo "</pre>";
+	
+	/**
+    $form['path']['#access'] = FALSE;
+    $form['menu']['#access'] = FALSE;
+    $form['author']['#access'] = FALSE;
+    $form['options']['#access'] = FALSE;
+    $form['comment_settings']['#access'] = FALSE;
+    $form['revision_information']['#access'] = FALSE;
+	**/
+	
+	//$form['additional_settings']['#access'] = FALSE;
+	
+	//$form['venue_node']['#type'] = 'hidden';
+	
+	
+	$form['concert_venue_radio'] = array(
+	  '#title' => t("Choose a venue from the database or add one manually"),
+	  '#type' => 'radios',
+	  '#options' => array(0 => t('Add a venue from the database.'),
+						  1 => t('Add a venue manually.'),),
+	  '#default_value' => 0, 
+	  //'#default_value' => $node->venue_select['radio'],
+	  '#required' => TRUE,
+	  '#ajax' => array(
+		'callback' => 'concert_venue_callback',
+		'wrapper' => 'venue_select',
+		'effect' => 'fade',
+	  ),
+	);
+	
+	/**
+	$form['concert_venue_textfield_check']['und']['#ajax'] = array(
+	    'callback' => 'concert_venue_callback',
+		'wrapper' => 'venue_select',
+		'effect' => 'fade',
+		);
+	**/
+	$form['venue_select'] = array(
+	  '#prefix' => '<div id = "venue_select">',
+	  '#suffix' => '</div>',
+	  '#type' => 'fieldset',
+	);
+	
+	
+	/**
+	$form['venue_node']['#prefix'] = '<div id="venue_select">';
+	$form['venue_node']['#postfix'] = '</div>';
+	**/
+	
+	if (!empty($form_state['values']['concert_venue_radio']) && $form_state['values']['concert_venue_radio'] == '1'
+		  || empty($form_state['values']) && $node->venue_select['radio']) {
+	  	  
+	  $form['venue_select']['concert_venue_location'] = array(
+		'#type' => 'textfield',
+		'#title' => t('location'),
+		'#default_value' => empty($form_state['values']['concert_venue_location']) ?
+							$node->venue_select['location'] :
+							$form_state['values']['concert_venue_location'],
+		
+	  );
+	  $form['venue_select']['concert_venue_city'] = array(
+		'#type' => 'textfield',
+		'#title'=> t('city'),
+		'#default_value' => empty($form_state['values']['concert_venue_city']) ?
+							$node->venue_select['city'] :
+							$form_state['values']['concert_venue_city'],
+	  );
+	}
+	
+	else {
+	  
+	  
+	//if (!empty($form_state['values']['venue_radio']) && $form_state['values']['venue_radio'] == "0") {
+	  /**
+	  $form['venue_node'] = array(
+		'#type' => 'select',
+		'#options' => _concert_content_type_venue_options_list(),
+		//'#options' => drupal_map_assoc(array('appel', 'aardbei', 'peer')),
+		'#title' => t('venue node select'),
+		//'#default_value' => array('466') , // node id is select value
+		'#prefix' => '<div id = "venue_select">',
+	  '#suffix' => '</div>',
+	  );
+	  **/
+	  
+	   $form['venue_select']['concert_venue_node'] = array(
+		
+		'#type' => 'select',
+		'#options' => _concert_content_type_venue_options_list(),
+		'#title' => t('venue node select'),
+		//'#default_value' => '645',
+		
+		'#default_value' => empty($form_state['values']['concert_venue_node']) ?
+							$node->venue_select['node'] :
+							$form_state['values']['concert_venue_node'],
+		
+	  );	
+	  
+	  //$form['venue_node']['#type'] = ;
+	  
+	}
+	
+		
+	
+   /**
+   $form['venue_node_test'] = array(
+		'#type' => 'select',
+		'#options' => _concert_content_type_venue_options_list(),
+		//'#options' => drupal_map_assoc(array('appel', 'aardbei', 'peer')),
+		'#title' => t('venue node select'),
+		);
+  **/ 
+  //$form['venue_node']['#type'] = 'hidden';
+  //$form['concert_venue_node']['#type'] = 'hidden';
+  //$form['concert_venue_node']['und']['#default_value'] = '520'; // this works!!!
+  /**
+  if (!empty($form_state['values']['venue_node']))
+    $form['concert_venue_node']['und']['#default_value'] = $form_state['values']['venue_node']; // dit nog niet...
+  **/
+  
+  // Get rid of illegal choice warnings. TODO: write own validation.
+  $form['concert_venue_radio']['#validated'] = TRUE;
+  $form['venue_select']['concert_venue_node']['#validated'] = TRUE;
+}
+}
+
+function concert_venue_callback($form, $form_state) {
+  return $form['venue_select'];
+}
+
+/**
+ * Implements hook_node_submit().
+ */
+function concert_node_submit($node, $form, &$form_state) {
+  if ($node->type == "concert") {
+    $values = $form_state[ 'values'];
+    $node->venue_select['radio'] = $values['concert_venue_radio'];
+    $node->venue_select['node'] = isset($values['concert_venue_node']) ? $values['concert_venue_node'] : 0;
+    $node->venue_select['location'] = isset($values['concert_venue_location']) ? $values['concert_venue_location'] : '';
+    $node->venue_select['city'] = isset($values['concert_venue_city']) ? $values['concert_venue_city'] : '';
+  }
+}
+
+/**
+ * Implements hook_node_prepare().
+ */
+function concert_node_prepare($node) {
+  if ($node->type == "concert") { 
+    if (empty($node->venue_select)) {
+	  $node->venue_select['radio'] = 0;
+	  $node->venue_select['node'] = '672';
+	  $node->venue_select['location'] = '';
+	  $node->venue_select['city'] = '';
+	}
+  }
+}
+
+/**
+ * Implements hook_node_load().
+ */
+function concert_node_load($nodes, $types) {
+  $result = db_query('SELECT * FROM {concert_venue} WHERE nid IN(:nids)', array(':nids' => array_keys($nodes)))->fetchAllAssoc('nid');
+  
+  foreach ($nodes as &$node) {
+	$node->venue_select['radio'] = isset($result[$node->nid]->concert_venue_check) ? $result[$node->nid]->concert_venue_check : 0;
+	$node->venue_select['node'] = isset($result[$node->nid]->concert_venue_node) ? $result[$node->nid]->concert_venue_node : 0;
+	$node->venue_select['location'] = isset($result[$node->nid]->concert_venue_location) ? $result[$node->nid]->concert_venue_location : '';
+	$node->venue_select['city'] = isset($result[$node->nid]->concert_venue_city) ? $result[$node->nid]->concert_venue_city : '';
+  }
+}
+
+/** 
+ * Implements hook_node_insert().
+ */
+function concert_node_insert($node) {
+  db_insert('concert_venue')
+    ->fields(array(
+	  'nid' => $node->nid,
+	  'concert_venue_node' => (int)$node->venue_select['node'],
+	  'concert_venue_location' => $node->venue_select['location'],
+	  'concert_venue_city' => $node->venue_select['city'],
+	  'concert_venue_check' => $node->venue_select['radio'],
+	))
+	->execute();
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function concert_node_update($node) {
+  if (db_select('concert_venue', 'c')->fields('c')->condition('nid', $node->nid, '=')->execute()->fetchAssoc()) {
+	db_update('concert_venue')
+	->fields(array(
+	  'concert_venue_node' => $node->venue_select['node'],
+	  'concert_venue_location' => $node->venue_select['location'],
+	  'concert_venue_city' => $node->venue_select['city'],
+	  'concert_venue_check' => $node->venue_select['radio'],
+	))
+	->condition('nid', $node->nid)
+	->execute();
+  }
+}
+
+/**
+ * Implements hook_node_delete().
+ */
+function concert_node_delete($node) {
+  db_delete('concert_venue')
+  ->condition('nid', $node->nid)
+  ->execute();
+}
+
+/**
+ * Implements hook_block_info().
+ */
+
+function concert_block_info() {
+  $blocks = array();
+  
+  $blocks['coming_concerts'] = array(
+    'info' => t('Show upcoming concerts'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  
+  return $blocks;
+}
+
+/**
+ * Implement hook_block_view().
+ */
+
+function concert_block_view($block_name = ''){
+  if ($block_name == 'coming_concerts') {
+    $time_stamp = time();
+    $now = date('o-m-d',$time_stamp)."T".date('H:i:s',$time_stamp);
+    
+    $result = concert_find_concerts(OPERATOR_COMING, 'ASC', 3);
+    
+    if (isset($result['node'])) {
+      $items_nids = array_keys($result['node']);
+      $items = entity_load('node', $items_nids);
+    }
+    
+    foreach ($result as $row) { 
+      $block['content']['concerts'][] = node_view_multiple($items, 'concert_list');
+    }
+    
+    $block['subject'] = t('Upcoming concerts');
+	      
+    
+    /**
+    $block['content']['list'] = array(
+      '#theme' => 'item_list',
+      '#items' => $items,
+    );
+    **/
+    
+    $block['content']['more'] = array(
+      '#theme' => 'more_link',
+      '#url' => 'concerts',
+      '#title' => t('Meer concerten'),
+    );
+    
+    return $block;
+  }
+}
+
+function concert_find_concerts($operator, $order = 'ASC', $limit = 0, $year) {
+  $time_stamp = time();
+  $now = date('o-m-d',$time_stamp)."T".date('H:i:s',$time_stamp);
+  
+  $query = new EntityFieldQuery();
+    $query
+      ->entityCondition('entity_type', 'node')
+      ->entityCondition('bundle', 'concert')
+      ->propertyCondition('status', 1)
+      ->fieldCondition('concert_date', 'value', $now, $operator)
+      ->fieldOrderBy('concert_date','value', $order);
+  
+  if ($year)
+    $query->where('EXTRACT(YEAR FROM concert_date_value) = :year', array('year' => $year));
+	
+  if ($limit > 0)
+    $query->range(0, $limit);
+
+    
+  $result = $query->execute();
+  return $result;
+}
+
+function concert_get_years($show_archive, $now) {
+  if ($show_archive == TRUE) {
+    $result = db_query('SELECT EXTRACT(YEAR FROM concert_date_value) AS year
+			FROM {field_data_concert_date} d
+			WHERE d.concert_date_value < :now GROUP BY year ORDER BY d.concert_date_value DESC',
+			array(':now' => $now)
+			);
+  }
+  else if ($show_archive == FALSE) {
+    $result = db_query('SELECT EXTRACT (YEAR FROM concert_date_value) AS year
+		    FROM {field_data_concert_date} d
+			WHERE d.concert_date_value >= :now GROUP BY year ORDER BY d.concert_date_value ASC',
+			array(':now' => $now)
+			);
+  }  
+  return $result;
+}
+
+function concert_get_venue($nid) {
+  $result = db_query('SELECT * FROM {concert_venue} WHERE nid = :nid', array(':nid' => $nid))->fetchAll();
+  return $result;
+}
+
+function concert_get_concerts($operator, $order, $limit, $year) {
+  $time_stamp = time();
+  $now = date('o-m-d',$time_stamp)."T".date('H:i:s',$time_stamp);
+  
+  $query = db_select('node', 'n');
+  $query->join('field_data_concert_date', 'f', 'n.nid = f.entity_id');
+  //$query->join('field_data_concert_time_string', 't');
+  $query
+    ->fields('n', array('nid', 'title'))
+	->addField('f', 'concert_date_value');
+	//$query->addField('t', 'concert_time_string_value');
+	
+  $query	
+    ->condition('n.type', 'concert')
+	->condition('n.status', 1)
+	->where('EXTRACT(YEAR FROM f.concert_date_value) = :year', array('year' => $year))
+  	->condition('f.concert_date_value', $now, $operator)
+	
+	->orderBy('f.concert_date_value', $order);
+    
+	
+  if ($limit)
+	$query->range(0, $limit);
+	
+  $result = $query->execute();
+  return $result;
+}
+
+
+// klaar voor verwijdering
+// vervangen door date API.
+// Zie drupalcontrib.org/api/drupal/contributions%21date%21date_api%21date_api.module/7
+function concert_split_date(&$date) {
+  $matches = array();
+        preg_match(
+            '/(
+                (
+                    (
+                        (
+                            (
+                                (?<year>\d{4})
+                                (-(?<month>\d{2}))?
+                            )
+                            (-(?<day>\d{2}))?
+                        )
+                        (T?(?<hour>\d{2}))?
+                    )
+                    (:(?<minute>\d{2}))?
+                )
+                (:(?<second>\d{2}))?
+            )/x',
+            $date,
+            $matches
+        );
+
+  return array_map('intval', array_intersect_key($matches, array_flip(array('year', 'month', 'day', 'hour', 'minute', 'second'))));
+
+}
+

@@ -1,0 +1,26 @@
+.item-list ul {
+   list-style: none;
+   display: inline;
+   
+}
+
+li.day {
+    font-size: xx-large;
+    float:left;
+    position: relative;
+    top: 0px;
+}
+
+li.month, li.time {
+    position: relative;
+    top: 14px;
+    line-height: 12px;
+}
+
+li.time {
+    font-weight:bold;
+}
+
+tr.hidden {
+    display: none;
+}

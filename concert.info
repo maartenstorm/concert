@@ -1,0 +1,7 @@
+name = concert
+description = Concertagenda Module voor Drupal 7
+core = 7.x
+
+stylesheets[all][] = concert.css
+scripts[] = jquery_table.js
+dependencies[]= date

@@ -1,0 +1,532 @@
+<?php
+
+/**
+ * @file
+ * Install file for Concerts module.
+ *
+ */
+
+require_once 'concert_functions.inc';
+
+/**
+ * Implements hook_install().
+ *
+ */
+function concert_install() {
+  $t = get_t();
+    
+  $concert = array(
+    'type' => 'concert',
+    'name' => $t('Concert'),
+    'base' => 'node_content',
+    'description' => $t('This is a node type to add concerts in an eventlist for musicians.'),
+    'title_label' => $t('Concert Title'),
+    'custom' => TRUE,
+    );
+  
+  $content_type = node_type_set_defaults($concert);
+  node_type_save($content_type);
+  
+  $venue = array(
+   'type' => 'venue',
+   'name' => $t('Venue'),
+   'base' => 'node_content',
+   'description' => $t('A node type for adding venues, used with the concert module.'),
+   'title_label' => $t('Venue'),
+   'custom' => TRUE,
+   );
+  
+  $content_type = node_type_set_defaults($venue);
+  node_type_save($content_type);
+  
+  foreach (_concert_installed_fields() as $field) {
+    field_create_field($field);
+  }
+
+  foreach (_concert_installed_instances() as $instance) {
+    $instance['entity_type'] = 'node';
+    //$instance['bundle'] = $concert['type']; // remove, bundle bij alle ind. velden
+    field_create_instance($instance);
+  }
+ 
+  concert_create_example_nodes();
+  concert_create_example_venues();
+}
+
+function concert_uninstall() {
+  $sql = 'SELECT nid FROM {node} n WHERE n.type = :type';
+  $result = db_query($sql, array(':type' => 'concert'));
+  $nids = array();
+  foreach ($result as $row) {
+    $nids[] = $row->nid;
+  }
+  
+  $result = db_query($sql, array(':type' => 'venue'));
+  foreach ($result as $row) {
+    $nids[] = $row->nid;
+  }
+  
+  node_delete_multiple($nids);
+  
+  foreach (array_keys(_concert_installed_fields()) as $field) {
+    field_delete_field($field);
+  }
+  
+  $instances = field_info_instances('node', 'concert');
+  foreach ($instances as $instance_name => $instance) {
+    field_delete_instance($instance);
+  }
+  
+  $instances = field_info_instances('node', 'venue');
+  foreach ($instances as $instance_name => $instance) {
+   field_delete_instance($instance);
+  }
+  
+  node_type_delete('concert');
+  node_type_delete('venue');
+  field_purge_batch(1000);
+}
+
+function _concert_installed_fields() {
+  $t = get_t();
+  return array(
+    'concert_show_title' => array(
+      'field_name' => 'concert_show_title',
+      'cardinality' => 1,
+      'type' => 'list_boolean',    
+    ),
+    'concert_date' => array(
+      'field_name' => 'concert_date',
+      'cardinality' => 1,
+      'type' => 'date',
+    ),
+    'concert_description' => array(
+      'field_name' => 'concert_description',
+      'cardinality' => 1,
+      'type' => 'text_long',
+    ),
+    'concert_time_string' => array(
+       'field_name' => 'concert_time_string',
+       'cardinality' => 1,
+       'type' => 'text',
+    ),
+    /**
+    'concert_venue_node' => array(
+     'field_name' => 'concert_venue_node',
+     'label' => 'Select a venue from the list',
+     'type' => 'list_integer',
+     'cardinality' => '1',
+     'foreign keys' => array(),
+     'indexes' => array(
+       'value' => array(
+        0 => 'value',
+       ),
+      ),
+     'module' => 'list',
+     'settings' => array(
+      'allowed_values_function' => '_concert_content_type_venue_options_list',
+      ),
+    ),
+    */
+    /**
+    'concert_venue_textfield_check' => array(
+     'field_name' => 'concert_venue_textfield_check',
+     'type' => 'list_boolean',
+    ),
+    
+    'concert_venue_location' => array(
+     'field_name' => 'concert_venue_location',
+     'type' => 'text',
+    ),
+    'concert_venue_city' => array(
+     'field_name' => 'concert_venue_city',
+     'type' => 'text',
+    ),
+    **/
+    'venue_location' => array(
+     'field_name' => 'venue_location',
+     'cardinality' => 1,
+     'type' => 'text',
+    ),
+    'venue_city' => array(
+     'field_name' => 'venue_city',
+     'cardinality' => 1,
+     'type' => 'text',
+    ),
+    'venue_street' => array(
+     'field_name' => 'venue_street',
+     'cardinality' => 1,
+     'type' => 'text',
+    ),
+    'venue_pobox' => array(
+     'field_name' => 'venue_pobox',
+     'cardinality' => 1,
+     'type' => 'text',
+    ),
+    'venue_website' => array(
+     'field_name' => 'venue_website',
+     'cardinality' => 1,
+     'type' => 'text',
+    ),
+    /**
+    'venue_node' => array(
+     'field_name' => 'venue_node',
+     'label' => 'Select a venue from the list',
+     'type' => 'list_integer',
+     'cardinality' => '1',
+     'foreign keys' => array(),
+     'indexes' => array(
+       'value' => array(
+        0 => 'value',
+       ),
+      ),
+     'module' => 'list',
+     'settings' => array(
+      'allowed_values_function' => '_concert_content_type_venue_options_list',
+      ),
+    ),
+    **/
+    /**
+    'venue_radio' => array(
+     'field_name' => 'venue_radio',
+     'cardinality' => 1,
+     'type' => 'list_boolean',
+     
+    )
+    **/
+  );
+}
+
+function _concert_installed_instances() {
+  $t = get_t();
+  return array(
+    'concert_show_title' => array(
+      'field_name' => 'concert_show_title',
+      'bundle' => 'concert',
+      'label' => $t('Show title'),
+      'widget' => array(
+        'type' => 'options_onoff',
+        'settings' => array(
+           'display_label' => 1,
+        ),
+      ),
+      'display' => array(
+        'concert_list' => array(
+          'label' => 'hidden',
+          'type' => 'hidden',
+        ),
+      ),
+    ),   
+    'concert_date' => array(
+        'field_name' => 'concert_date',
+        'bundle' => 'concert',
+        'label' => $t('Concert Date'),
+        'widget' => array(
+            'type' => 'date_popup',
+        ),
+        'display' => array(
+          'concert_list' => array(
+            'label' => 'hidden',
+            'type' => 'date_default',
+          ),
+        ),
+    ),
+    'concert_description' => array(
+      'field_name' => 'concert_description',
+      'bundle' => 'concert',
+      'label' => $t('Description'),
+      'widget' => array(
+        'type' => 'text_textarea',
+        'settings' => array('rows' => 5),
+      ),
+      'display' => array(
+        'concert_list' => array(
+          'label' => 'hidden',
+          'type' => 'text_default', 
+          ),
+        ),
+    ),
+    'concert_time_string' => array(
+     'field_name' => 'concert_time_string',
+     'bundle' => 'concert',
+     'label' => $t('Concert time string. Use a time string if there is no actual time, or specific time will be anounced later. This value overrides the time entered above.'),
+     'widget' => array(
+          'type' => 'text_textfield', 
+     ),
+     'display' => array(
+       'concert_list' => array(
+          'label' => 'hidden',
+       ),
+     ),
+    ),
+    /**
+    'concert_venue_node' => array(
+     'field_name' => 'concert_venue_node',
+     'bundle' => 'concert',
+     'label' => $t('Choose a venue'),
+     'widget' => array(
+      'active' => '1',
+      'module' => 'options',
+      'settings' => array(
+       'type' => 'options_select',
+       //'weight' => '-1',
+      ),
+     ),
+    ),
+    */
+    /**
+    'venue_node' => array(
+     'field_name' => 'venue_node',
+     'bundle' => 'concert',
+     'label' => $t('Choose a venue'),
+     'widget' => array(
+      'active' => '1',
+      'module' => 'options',
+      'settings' => array(
+       'type' => 'options_select',
+       //'weight' => '-1',
+      ),
+     ),
+    ),
+    **/
+    /**
+    'concert_venue_textfield_check' => array(
+      'field_name' => 'concert_venue_textfield_check',
+      'bundle' => 'concert',
+      'label' => $t('Enter venue manually'),
+      'widget' => array(
+        'type' => 'options_onoff',
+        'settings' => array(
+           'display_label' => 1,
+        ),
+      ),
+      'display' => array(
+        'concert_list' => array(
+          'label' => 'hidden',
+          'type' => 'hidden',
+        ),
+      ),
+    ),
+    
+    'concert_venue_location' => array(
+     'field_name' => 'concert_venue_location',
+     'bundle' => 'venue',
+     'label' => $t('Name of the venue'),
+     'widget' => array(
+      'type' => 'text_textfield',
+     ),
+    ),
+    
+    'concert_venue_city' => array(
+     'field_name' => 'concert_venue_city',
+     'bundle' => 'venue',
+     'label' => $t('City of the venue'),
+     'widget' => array(
+      'type' => 'text_textfield',
+     ),
+    ),
+    **/
+    'venue_location' => array(
+     'field_name' => 'venue_location',
+     'bundle' => 'venue',
+     'label' => $t('Name of the venue'),
+     'widget' => array(
+      'type' => 'text_textfield',
+     ),
+    ),
+    
+    'venue_city' => array(
+     'field_name' => 'venue_city',
+     'bundle' => 'venue',
+     'label' => $t('City of the venue'),
+     'widget' => array(
+      'type' => 'text_textfield',
+     ),
+    ),
+    
+    'venue_street' => array(
+     'field_name' => 'venue_street',
+     'bundle' => 'venue',
+     'label' => $t('Venue street'),
+     'widget' => array(
+      'type' => 'text_texfield',
+     ),
+    ),
+    
+    'venue_pobox' => array(
+     'field_name' => 'venue_pobox',
+     'bundle' => 'venue',
+     'label' => $t('Venue PO box'),
+     'widget' => array(
+      'type' => 'text_textfield',
+     ),
+    ),
+    
+    'venue_website' => array(
+     'field_name' => 'venue_website',
+     'bundle' => 'venue',
+     'label' => $t('Website of the venue'),
+     'widget' => array(
+      'type'=> 'text_textfield',
+     ),
+    ),
+    /**
+    'venue_radio' => array(
+     'field_name' => 'venue_radio',
+     'bundle' => 'concert',
+     'label' => $t('Choose'),
+     'widget' => array(
+      'type' => 'options_buttons',
+     )
+    )
+    **/
+  );
+}
+
+/**
+ * Implements hook_schema().
+ */
+function concert_schema() {
+ $schema['concert_venue'] = array(
+  'description' => 'Stores venue data for concert node types',
+  'fields' => array(
+   'nid' => array(
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+    'default' => 0,
+    'description' => 'The {node}.nid to store settings.',
+    ),
+   'concert_venue_check' => array(
+    'type' => 'int',
+    'not null' => FALSE,
+    'default' => 0,
+    'description' => 'Concert venue checkbox',
+    ),
+   'concert_venue_node' => array(
+    'type' => 'int',
+    'unsigned' => 'true',
+    'not null' => FALSE,
+    'default' => null,
+    'description' => 'Concert venue node',
+    ),
+   'concert_venue_location' => array(
+    'type' => 'varchar',
+    'length' => 256,
+    'not null' => FALSE,
+    'default' => '',
+    'description' => 'Concert venue location',
+    ),
+   'concert_venue_city' => array(
+    'type' => 'varchar',
+    'length' => 256,
+    'not null' => FALSE,
+    'default' => '',
+    'description' => 'Concert venue city',
+    ),
+   ),
+   'primary key' => array('nid'),
+   'foreign keys' => array(
+    'dnv_mode' => array(
+     'table' => 'node',
+     'columns' => array('nid' => 'nid'),
+    ),
+   ),
+ );
+ return $schema;
+}
+
+/**
+ * Add the concert_venue table.
+ */
+function concert_update_7000() {
+ if (!db_table_exists('concert_venue')) {
+  $schema = concert_concert_venue_schema();
+  db_create_table('concert_venue', $schema['concert_venue']);
+  return st('Created table concert_venue');
+ }
+}
+
+function concert_create_example_nodes() {
+ for ($year = 2009; $year <2015; $year++) {
+  for ($a = 0; $a < 3; $a++) {
+    $date = format_date(mktime(20,15,0, rand(1,12), rand(1,30), $year), 'custom', "Y-m-d\TH:i:s");
+    $createDate[$a] = $date;
+  }
+  
+  $titles = array('galaconcert' => $createDate[0],
+                  'middagconcert' => $createDate[1],
+                  'lunchconcert' => $createDate[2]);
+  
+  foreach ($titles as $key => $value) {
+   $newNode = (object) NULL;
+   $newNode->type = 'concert';
+   $newNode->title = $key;
+   $newNode->uid = 1;
+   $newNode->created = strtotime("now");
+   $newNode->changed = strtotime("now");
+   $newNode->status = 1;
+   $newNode->comment = 0;
+   $newNode->promote = 0;
+   $newNode->moderate = 0;
+   $newNode->sticky = 0;
+   
+   // TODO: aan te vullen met nieuwe velden
+   $newNode->concert_show_title[LANGUAGE_NONE][0]['value'] = '1';
+   $newNode->concert_description[LANGUAGE_NONE][0]['value'] = 'beschrijving';
+   $newNode->concert_date[LANGUAGE_NONE][0]['value'] = $value;
+   
+   node_save($newNode);
+  }
+ }
+}
+
+function concert_create_example_venues() {
+ $locations = array(
+  'Concertgebouw Amsterdam' => array(
+    'location' => 'Concertgebouw',
+    'city' => 'Amsterdam',
+    'street' => 'van Baerlestraat',
+    'pobox' => '1000AZ',
+    'website' => 'www.concertgebouw.nl',
+  ),
+  'Muziekgebouw Eindhoven' => array(
+   'location' => 'Muziekgebouw',
+   'city' => 'Eindhoven',
+   'street' => 'Heuvelgalerie',
+   'pobox' => '5000AZ',
+   'website' => 'www.muziekgebouw.nl',
+  ),
+  'Concertzaal Tilburg' => array(
+   'location' => 'Concertzaal',
+   'city' => 'Tilburg',
+   'street' => 'Schouwburgring',
+   'pobox' => '4000',
+   'website' => 'www.theaterstilburg.nl',
+  ),
+ );
+ 
+ foreach ($locations as $key => $value) {
+  $newNode = (object) NULL;
+  $newNode->type = 'venue';
+  $newNode->title = $key;
+  $newNode->uid = 1;
+  $newNode->created = strtotime("now");
+  $newNode->changed = strtotime("now");
+  $newNode->status = 1;
+  $newNode->comment = 0;
+  $newNode->promote = 0;
+  $newNode->moderate = 0;
+  $newNode->sticky = 0;
+  
+  $newNode->venue_location[LANGUAGE_NONE][0]['value'] = $value['location'];
+  $newNode->venue_city[LANGUAGE_NONE][0]['value'] = $value['city'];
+  $newNode->venue_street[LANGUAGE_NONE][0]['value'] = $value['street'];
+  $newNode->venue_pobox[LANGUAGE_NONE][0]['value'] = $value['pobox'];
+  $newNode->venue_website[LANGUAGE_NONE][0]['value'] = $value['website'];
+  
+  node_save($newNode);
+ }
+
+}
+
