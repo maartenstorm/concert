@@ -503,15 +503,17 @@ function concert_node_load($nodes, $types) {
  * Implements hook_node_insert().
  */
 function concert_node_insert($node) {
-  db_insert('concert_venue')
-    ->fields(array(
-	  'nid' => $node->nid,
-	  'concert_venue_node' => (int)$node->venue_select['node'],
-	  'concert_venue_location' => $node->venue_select['location'],
-	  'concert_venue_city' => $node->venue_select['city'],
-	  'concert_venue_check' => $node->venue_select['radio'],
-	))
-	->execute();
+  if (isset($node->venue_select)) {
+    db_insert('concert_venue')
+      ->fields(array(
+	    'nid' => $node->nid,
+	    'concert_venue_node' => (int)$node->venue_select['node'],
+	    'concert_venue_location' => $node->venue_select['location'],
+	    'concert_venue_city' => $node->venue_select['city'],
+	    'concert_venue_check' => $node->venue_select['radio'],
+	  ))
+	  ->execute();
+  }
 }
 
 /**
