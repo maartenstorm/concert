@@ -130,51 +130,52 @@ function concert_page($arg = NULL) {
 	if (variable_get('concert_admin_date_style')) {
 	  $month = date_format_date($dateObject, 'custom', variable_get('concert_admin_custom_month'));
 	  if (variable_get('concert_admin_custom_month_lc')) {
-		$month = strtolower($month);
+	    $month = strtolower($month);
 	  }
 	  
 	  $items = array(
-		array(
-		  'data' => $dateArray['day'],
-		  'class' => array('date_cell' => 'day')
-		),
-		array(
-		  'data' => $month,
-		  'class' => array('date_cell' => 'month')
-		),
+	    array(
+	      'data' => $dateArray['day'],
+	      'class' => array('date_cell' => 'day')
+	      ),
+	    array(
+	      'data' => $month,
+	      'class' => array('date_cell' => 'month')
+	      ),
 	  );
 		  
 	  if ($node->concert_time_string) {
-		// TODO: hier geen tijd weergeven, string weergeven bovenaan informatiecell
-		$items[] = array(
-		  'data' => $node->concert_time_string['und'][0]['value'],
-		  'class' => array('date_cell' => 'time_string')
-		);
+	    // TODO: hier geen tijd weergeven, string weergeven bovenaan informatiecell
+	    $items[] = array(
+	     'data' => $node->concert_time_string['und'][0]['value'],
+	     'class' => array('date_cell' => 'time_string')
+	     );
 	  } else {
-		$items[] = array(
-		  'data' => date_pad($dateArray['hour']) . HOUR_MINUTE_SEPERATOR . date_pad($dateArray['minute']),		  
-		  'class' => array('date_cell' => 'time')
-		);
+	    $items[] = array(
+	      'data' => date_pad($dateArray['hour']) . HOUR_MINUTE_SEPERATOR . date_pad($dateArray['minute']),		  
+	      'class' => array('date_cell' => 'time')
+	      );
 	  }
 	  
 	  $date_cell = array(
-		  'data' => array(
-			'#theme' => 'item_list',
-			'#items' => $items,
-			'#attributes' => array('class' => array('concert-list-date')),
-		  ),	
+      	    'data' => array(
+              '#theme' => 'item_list',
+              '#items' => $items,
+	      '#attributes' => array('class' => array('concert-list-date', 'expand')),
+	      ),	
 	  );	
 	} else {
-	  $items = 
-		format_date(strtotime($row->concert_date_value), 'custom', variable_get('concert_admin_custom_month'));	
+	  // date_format_date($dateObject, $format) where $format is to be set in the admin configuration?
+	  $items = $dateArray['day'] . " " . format_date(strtotime($row->concert_date_value), 'custom', variable_get('concert_admin_custom_month'));
+	  $items .= " " . date_pad($dateArray['hour']) . HOUR_MINUTE_SEPERATOR . date_pad($dateArray['minute']); 	
 	  
 	  $date_cell = array(
-		  'data' => array(
-			'#type' => 'markup',
-			'#markup' => $items,
-			'#prefix' => '<div class="date">',
-			'#suffix' => '</div>'
-		  ),	       
+	    'data' => array(
+	      '#type' => 'markup',
+	      '#markup' => $items,
+	      '#prefix' => '<div class="date">',
+	      '#suffix' => '</div>'
+	      ),	       
 	  );
 	}
       
@@ -184,38 +185,42 @@ function concert_page($arg = NULL) {
       $venue = concert_get_venue($node->nid);
       
       if (isset($venue[0]->concert_venue_check) && $venue[0]->concert_venue_check == 0) {
-	    if ($venue[0]->concert_venue_node != "0") {
-	      $venue_node = node_load($venue[0]->concert_venue_node); // if... ?
-	      if ($venue_node->title) {
-		    $location = $venue_node->title;
-	      } else if ($venue_node->location && $venue_node->city) {
-		    $location = $venue_node->venue_location[0]['und']['value'] . "<br/>" . $venue_node->venue_city[0]['und']['value'];
-	      }
-	    }
+	if ($venue[0]->concert_venue_node != "0") {
+	  $venue_node = node_load($venue[0]->concert_venue_node); // if... ?
+	  if ($venue_node->title) {
+	    $location = $venue_node->title;
+	  } else if ($venue_node->location && $venue_node->city) {
+	     $location = $venue_node->venue_location[0]['und']['value'] . "<br/>" . $venue_node->venue_city[0]['und']['value'];
+	   }
+        }
       } else if (isset($venue[0]->concert_venue_check) && $venue[0]->concert_venue_check == 1) {
-	      $location = $venue[0]->concert_venue_location  . "<br/>" . $venue[0]->concert_venue_city;
+	$location = $venue[0]->concert_venue_location  . "<br/>" . $venue[0]->concert_venue_city;
       }
       
       $rows[] = array(
-	    'data' => array(
-	       $date_cell,
-	       l($row->title, 'node/'. $row->nid),
-	       $location,
-	      ),
-	    'class' => array('parent', 'expand'),
-	    'no_striping' => FALSE,
+	'data' => array(
+	  $date_cell,
+	  array(
+	    'data' => $row->title,
+	    'class' => array('expand'),
+	    ),
+	    //l($row->title, 'node/'. $row->nid),
+	  $location,
+	  ),
+	  'class' => array('parent'),
+	  'no_striping' => FALSE,
       );
       
       $rows[] = array(
-	    'data' => array(
-	      '',
-	      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi dignissim gravida vulputate. Nulla tempor, dui nec luctus gravida, ante justo dapibus libero, quis fermentum dui nisl a lorem. In hac habitasse platea dictumst. Donec ut luctus leo. Donec et consequat dui. Sed dapibus consectetur sapien gravida dignissim. Duis fermentum posuere ullamcorper.
+	'data' => array(
+	'',
+	'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi dignissim gravida vulputate. Nulla tempor, dui nec luctus gravida, ante justo dapibus libero, quis fermentum dui nisl a lorem. In hac habitasse platea dictumst. Donec ut luctus leo. Donec et consequat dui. Sed dapibus consectetur sapien gravida dignissim. Duis fermentum posuere ullamcorper.
 
 Sed vel libero sit amet est semper mattis eu et tortor. Aenean turpis dolor, suscipit sed interdum eu, varius in quam. Curabitur imperdiet porttitor urna vel auctor. Mauris faucibus, lectus et adipiscing lobortis, ligula mi posuere turpis, sed elementum dui erat nec orci. Morbi in tellus sit amet dolor ultrices pretium quis cursus massa. Pellentesque a massa nisi, vitae semper diam. Proin molestie metus ut odio gravida dignissim. Integer ante enim, tincidunt et feugiat sit amet, pulvinar a ligula. Suspendisse placerat tincidunt elementum. In cursus nisi non leo fringilla ut dictum enim volutpat. Aenean a leo quis tellus aliquam tempus. Mauris interdum feugiat pharetra. Integer rutrum ipsum sit amet sem consectetur laoreet pellentesque lorem laoreet. Cras quis suscipit lectus.',
-	      '',
-	    ),
-	    'class' => array('hidden'),
-	    'no_striping' => FALSE,
+	'',
+	),
+	'class' => array('hidden'),
+	'no_striping' => FALSE,
       );
     }
       
@@ -243,7 +248,7 @@ Sed vel libero sit amet est semper mattis eu et tortor. Aenean turpis dolor, sus
 function concert_entity_info_alter(&$entity_info) {
   $entity_info['node']['view modes']['concert_list'] = array(
     'label' => t('Concert list'),
-     'custom settings' => TRUE,
+    'custom settings' => TRUE,
    );
 }
 
