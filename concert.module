@@ -166,9 +166,11 @@ function concert_page($arg = NULL) {
 	  );	
 	} else {
 	  // date_format_date($dateObject, $format) where $format is to be set in the admin configuration?
+	  /**
 	  $items = $dateArray['day'] . " " . format_date(strtotime($row->concert_date_value), 'custom', variable_get('concert_admin_custom_month'));
 	  $items .= " " . date_pad($dateArray['hour']) . HOUR_MINUTE_SEPERATOR . date_pad($dateArray['minute']); 	
-	  
+	  **/
+	  $items = date_format_date($dateObject, "custom", variable_get('concert_admin_date_format', CONCERT_LIST_DATE_FORMAT));
 	  $date_cell = array(
 	    'data' => array(
 	      '#type' => 'markup',
@@ -304,6 +306,57 @@ function _concert_insert_after_first_element(&$a, $element) {
   } 
 }
 
+function concert_date_format_types() {
+  return array(
+    'concert' => t('Concert date formats'),
+  );
+}
+
+function concert_date_formats() {
+  return array(
+    array(
+      'type' => 'concert',
+      'format' => 'd F G:i',
+      'locales' => '',
+    ),
+    array(
+      'type' => 'concert',
+      'format' => 'd M G:i',
+      'locales' => '',
+    ),
+    array(
+      'type' => 'concert',
+      'format' => 'j F G:i',
+      'locales' => '',
+    ),
+    array(
+      'type' => 'concert',
+      'format' => 'j M G:i',
+      'locales' => '',
+    ),
+    array(
+      'type' => 'concert',
+      'format' => 'd F | G:i',
+      'locales' => '',
+    ),
+    array(
+      'type' => 'concert',
+      'format' => 'd M | G:i',
+      'locales' => '',
+    ),
+    array(
+      'type' => 'concert',
+      'format' => 'j F | G:i',
+      'locales' => '',
+    ),
+    array(
+      'type' => 'concert',
+      'format' => 'j M | G:i',
+      'locales' => '',
+    ),
+  );
+}
+
 function concert_admin_form($form, &$form_state) {
   $form['concert_admin_date_style'] = array(
     '#type' => 'radios',
@@ -313,22 +366,85 @@ function concert_admin_form($form, &$form_state) {
       0 => t('Standard style.'),
       1 => t('Custom style'),
     ),
-    '#default_value' => variable_get('concert_admin_date_style', CONCERT_LIST_DATE_STYLE),
+    '#default_value' => variable_get('concert_admin_date_style', 0),
+    '#ajax' => array(
+      'callback' => 'concert_admin_ajax_form_callback',
+      'wrapper' => 'date-style-settings',
+      'effect' => 'fade',
+    ),
+    '#required' => TRUE,
   );
-  $form['concert_admin_custom_month'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Concert list custom month format'),
-    '#description' => t('Give the format for showing the month in custom display. Default \'F\'.'),
-    '#default_value' => variable_get('concert_admin_custom_month', CONCERT_LIST_DATE_FORMAT_MONTH),
-    '#size' => 4,
-    '#maxlength' => 4,
+  
+  $types = array();
+  $format_types = system_get_date_types();
+  foreach ($format_types as $type => $type_info) {
+    $types[] = $type;
+  }
+  
+  
+  
+  $form['date_style_settings'] = array(
+    '#title' => t('Date style settings'),
+    '#type' => 'fieldset',
+    '#prefix' => '<div id="date-style-settings">',
+    '#suffix' => '</div>',
   );
-  $form['concert_admin_custom_month_lc'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Concert list custom month lowercase'),
-    '#description' => t('When checked the month is showed beginning with a lowercase in custom display'),
-    '#default_value' => variable_get('concert_admin_custom_month_lc', CONCERT_LIST_MONTH_LOWERCASE),
-  );
+  
+ 
+  
+  if (!empty($form_state['values']['concert_admin_date_style']) && $form_state['values']['concert_admin_date_style'] == 0
+        || empty($form_state['values']['concert_admin_date_style']) && variable_get('concert_admin_date_format') == 0)  {
+  
+   //dpm($types);
+   //dpm($form_state);
+   
+   $selected_type = isset($form_state['values']['concert_admin_standard_type']) ? $types[$form_state['values']['concert_admin_standard_type']] : current($types);
+
+
+    $form['date_style_settings']['concert_admin_standard_type'] = array(
+      '#type' => 'select',
+      '#title' => t('Select date type'),
+      '#description' => t('Select a date type. Choose Concert for a collection of date formats automatically created by Concert module. Choose Custom when you created a date format of the custom type.'),
+      '#options' => $types,
+      '#default_value' => 0,
+      '#ajax' => array(
+	'callback' => 'concert_admin_form_ajax_date_form',
+	'wrapper' => 'date-format-select',
+	'event' => 'change',
+      ),
+    );
+    
+    //if (!empty($form_state['values']['concert_admin_standard_type']) && $form_state['values']['concert_admin_standard_type'])
+    $form['date_style_settings']['concert_admin_standard_format'] = array(
+      '#type' => 'select',
+      '#title' => t('Date format'),
+      '#description' => t('Choose a date format. Or <a href="@link">create a date format here</a>.', array('@link' => url('admin/config/regional/date-time/formats/add'))),
+      //'#options' => concert_admin_date_format_populate($form_state['values']['concert_admin_standard_type']),
+      '#options' => concert_admin_date_format_populate($selected_type),
+      '#default_value' => variable_get('concert_admin_date_format', CONCERT_LIST_DATE_FORMAT),
+      '#prefix' => '<div id="date-format-select">',
+      '#postfix' => '</div>',
+    );
+  }
+  
+  if (!empty($form_state['values']['concert_admin_date_style']) && $form_state['values']['concert_admin_date_style'] == '1'
+        || empty($form_state['values']['concert_admin_date_style']) && variable_get('concert_admin_date_format') == '1') {
+    $form['date_style_settings']['concert_admin_custom_month'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Concert list custom month format'),
+      '#description' => t('Give the format for showing the month in custom display. Default \'F\'.'),
+      '#default_value' => variable_get('concert_admin_custom_month', CONCERT_LIST_DATE_FORMAT_MONTH),
+      '#size' => 4,
+      '#maxlength' => 4,
+    );
+    
+    $form['date_style_settings']['concert_admin_custom_month_lc'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Concert list custom month lowercase'),
+      '#description' => t('When checked the month is showed beginning with a lowercase in custom display'),
+      '#default_value' => variable_get('concert_admin_custom_month_lc', CONCERT_LIST_MONTH_LOWERCASE),
+    );
+  }
   
   $form['concert_admin_venue_unknown'] = array(
     '#type' => 'textfield',
@@ -355,15 +471,58 @@ function concert_admin_form($form, &$form_state) {
   return $form;
 }
 
+function concert_admin_date_format_populate($date_type) {
+  $formats = array();
+  drupal_static_reset('system_get_date_formats');
+  
+  /**
+  $date_formats = system_get_date_formats(); 
+  foreach ($date_formats as $type => $format_info) {
+    $formats = array_merge($formats, $format_info);
+  }
+  $custom_formats = system_get_date_formats('custom');
+  if (!empty($custom_formats)) {
+    $formats = array_merge($formats, $custom_formats);
+  }
+  $concert_formats = system_get_date_formats('concert');
+  if (!empty($concert_formats)) {
+    $formats = array_merge($formats, $concert_formats);
+  }
+  **/
+  
+  $type_formats = system_get_date_formats($date_type);
+  if (!empty($type_formats)) {
+    $formats = array_merge($formats, $type_formats);
+  }
+  
+  $choices = array();
+  foreach ($formats as $f => $format) {
+    $choices[$f] = format_date(REQUEST_TIME, 'custom', $f);
+  }
+  
+  return $choices;
+}
+function concert_admin_ajax_form_callback($form, &$form_state) {
+  return $form['date_style_settings'];
+}
+function concert_admin_form_ajax_date_form($form, &$form_state) {
+  return $form['date_style_settings']['concert_admin_standard_format'];  
+ }
 /**
  * Save configuration settings
  */
 function concert_admin_form_submit($form, &$form_state) {
   variable_set('concert_admin_date_style', $form_state['values']['concert_admin_date_style']);
-  variable_set('concert_admin_custom_month', $form_state['values']['concert_admin_custom_month']);
-  variable_set('concert_admin_custom_month_lc', $form_state['values']['concert_admin_custom_month_lc']);
+  if (variable_get('concert_admin_date_style') == 1) {
+    variable_set('concert_admin_custom_month', $form_state['values']['concert_admin_custom_month']);
+    variable_set('concert_admin_custom_month_lc', $form_state['values']['concert_admin_custom_month_lc']);
+  }
+  if (variable_get('concert_admin_date_style') == 0) {
+    variable_set('concert_admin_date_format', $form_state['values']['concert_admin_standard_format']);
+  }
   variable_set('concert_admin_venue_unknown', $form_state['values']['concert_admin_venue_unknown']);
   variable_set('concert_admin_table_header', $form_state['values']['concert_admin_table_header']);
+  
 }
 /**
  * Implements hook_form_alter()

@@ -42,3 +42,21 @@ ul.concert-list-date {
 td .item-list {
    height: 50px;
 }
+
+.form-item-concert-admin-standard-type .description {
+   width: 300px;
+}
+
+.form-item-concert-admin-standard-type {
+   float: left;
+   width: 300;
+   margin-right: 48px !important;
+}
+
+.form-item-concert-admin-standard-type select {
+   width: 300px;
+}
+
+.form-item-concert-admin-standard-format select {
+   width: 300px;
+}
