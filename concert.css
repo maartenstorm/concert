@@ -6,15 +6,23 @@
 
 li.day {
     font-size: xx-large;
-    float:left;
+    float:right;
     position: relative;
-    top: 0px;
+    top: -6px;
+    left: -66px;
 }
 
 li.month, li.time {
-    position: relative;
-    top: 14px;
+    position: absolute;
+    left: 46px;
     line-height: 12px;
+    display: block;
+    top: 8px;
+}
+
+li.time {
+   top: 20px;
+   
 }
 
 li.time {
@@ -23,4 +31,14 @@ li.time {
 
 tr.hidden {
     display: none;
+}
+
+ul.concert-list-date {
+   height: 30px;
+   padding-left: 0px;
+   position: relative;
+}
+
+td .item-list {
+   height: 50px;
 }

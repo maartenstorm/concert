@@ -118,65 +118,65 @@ function concert_page($arg = NULL) {
       
     $rows = array();
       foreach ($result as $row) {
-	    $dateObject = new DateObject($row->concert_date_value, NULL, 'Y-m-d\TH:i:s');
-	    $dateArray = $dateObject->toArray();
-	    
-	    if (isset($row->nid)) {
-	      $node = node_load($row->nid);
-	    }
+	$dateObject = new DateObject($row->concert_date_value, NULL, 'Y-m-d\TH:i:s');
+	$dateArray = $dateObject->toArray();
+	
+	if (isset($row->nid)) {
+	  $node = node_load($row->nid);
+	}
 
-	    $date_cell = array();
-      
-	    if (variable_get('concert_admin_date_style')) {
-	      $month = date_format_date($dateObject, 'custom', CONCERT_LIST_DATE_FORMAT_MONTH);
-	      if (variable_get('concert_admin_custom_month_lc')) {
-		    $month = strtolower($month);
-	      }
-	      
-	      $items = array(
-		    array(
-		      'data' => $dateArray['day'],
-		      'class' => array('date_cell' => 'day')
-		    ),
-		    array(
-		      'data' => $month,
-		      'class' => array('date_cell' => 'month')
-		    ),
-	      );
-		      
-	      if ($node->concert_time_string) {
-		    // TODO: hier geen tijd weergeven, string weergeven bovenaan informatiecell
-		    $items[] = array(
-		      'data' => $node->concert_time_string['und'][0]['value'],
-		      'class' => array('date_cell' => 'time_string')
-		    );
-	      } else {
-		    $items[] = array(
-		      'data' => date_pad($dateArray['hour']) . HOUR_MINUTE_SEPERATOR . date_pad($dateArray['minute']),		  
-		      'class' => array('date_cell' => 'time')
-		    );
-	      }
-	      
-	      $date_cell = array(
-		      'data' => array(
-			    '#theme' => 'item_list',
-			    '#items' => $items,
-			    '#attributes' => array('class' => array('concert-list-date')),
-		      ),	
-	      );	
-	    } else {
-	      $items = 
-		    format_date(strtotime($row->concert_date_value), 'custom', variable_get('concert_admin_custom_month'));	
-	      
-	      $date_cell = array(
-		      'data' => array(
-			    '#type' => 'markup',
-			    '#markup' => $items,
-			    '#prefix' => '<div class="date">',
-			    '#suffix' => '</div>'
-		      ),	       
-	      );
-	    }
+	$date_cell = array();
+  
+	if (variable_get('concert_admin_date_style')) {
+	  $month = date_format_date($dateObject, 'custom', variable_get('concert_admin_custom_month'));
+	  if (variable_get('concert_admin_custom_month_lc')) {
+		$month = strtolower($month);
+	  }
+	  
+	  $items = array(
+		array(
+		  'data' => $dateArray['day'],
+		  'class' => array('date_cell' => 'day')
+		),
+		array(
+		  'data' => $month,
+		  'class' => array('date_cell' => 'month')
+		),
+	  );
+		  
+	  if ($node->concert_time_string) {
+		// TODO: hier geen tijd weergeven, string weergeven bovenaan informatiecell
+		$items[] = array(
+		  'data' => $node->concert_time_string['und'][0]['value'],
+		  'class' => array('date_cell' => 'time_string')
+		);
+	  } else {
+		$items[] = array(
+		  'data' => date_pad($dateArray['hour']) . HOUR_MINUTE_SEPERATOR . date_pad($dateArray['minute']),		  
+		  'class' => array('date_cell' => 'time')
+		);
+	  }
+	  
+	  $date_cell = array(
+		  'data' => array(
+			'#theme' => 'item_list',
+			'#items' => $items,
+			'#attributes' => array('class' => array('concert-list-date')),
+		  ),	
+	  );	
+	} else {
+	  $items = 
+		format_date(strtotime($row->concert_date_value), 'custom', variable_get('concert_admin_custom_month'));	
+	  
+	  $date_cell = array(
+		  'data' => array(
+			'#type' => 'markup',
+			'#markup' => $items,
+			'#prefix' => '<div class="date">',
+			'#suffix' => '</div>'
+		  ),	       
+	  );
+	}
       
       $info_cell = array();
       // TODO: location in 2nd column, city in 3rd.
@@ -378,7 +378,8 @@ function concert_form_alter(&$form, &$form_state, $form_id) {
     $form['revision_information']['#access'] = FALSE;
     $form['additional_settings']['#access'] = FALSE;
     **/
-	
+    
+    $node = $form['#node'];
     $form['concert_venue_radio'] = array(
       '#title' => t("Choose a venue from the database or add one manually"),
       '#type' => 'radios',
