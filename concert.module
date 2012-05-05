@@ -51,7 +51,7 @@ function concert_menu() {
     );
 	  
   $items['concerts/list'] = array(
-    'title' => 'View upcoming concerts',
+    'title' => 'Upcoming concerts',
     'page callback' => 'concert_page',
     'page arguments' => array(0),
     'access arguments' => array('access content'),
