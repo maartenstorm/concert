@@ -136,7 +136,10 @@ function concert_page($arg = NULL) {
 	  foreach ($result as $row) {
 		$dateObject = new DateObject($row->concert_date_value, NULL, 'Y-m-d\TH:i:s');
 		$dateArray = $dateObject->toArray();
-	  
+	        
+		dpm($dateObject);
+		dpm($dateArray);
+		
 		if (isset($row->nid)) {
 		  $node = node_load($row->nid);
 		}
@@ -168,7 +171,7 @@ function concert_page($arg = NULL) {
 			);
 		  } else {
 			$items[] = array(
-			  'data' => $dateArray['hour'] . HOUR_MINUTE_SEPERATOR . $dateArray['minute'],		  
+			  'data' => date_pad($dateArray['hour']) . HOUR_MINUTE_SEPERATOR . date_pad($dateArray['minute']),		  
 			  'class' => array('date_cell' => 'time')
 			);
 		  }
