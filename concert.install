@@ -110,39 +110,6 @@ function _concert_installed_fields() {
        'cardinality' => 1,
        'type' => 'text',
     ),
-    /**
-    'concert_venue_node' => array(
-     'field_name' => 'concert_venue_node',
-     'label' => 'Select a venue from the list',
-     'type' => 'list_integer',
-     'cardinality' => '1',
-     'foreign keys' => array(),
-     'indexes' => array(
-       'value' => array(
-        0 => 'value',
-       ),
-      ),
-     'module' => 'list',
-     'settings' => array(
-      'allowed_values_function' => '_concert_content_type_venue_options_list',
-      ),
-    ),
-    */
-    /**
-    'concert_venue_textfield_check' => array(
-     'field_name' => 'concert_venue_textfield_check',
-     'type' => 'list_boolean',
-    ),
-    
-    'concert_venue_location' => array(
-     'field_name' => 'concert_venue_location',
-     'type' => 'text',
-    ),
-    'concert_venue_city' => array(
-     'field_name' => 'concert_venue_city',
-     'type' => 'text',
-    ),
-    **/
     'venue_location' => array(
      'field_name' => 'venue_location',
      'cardinality' => 1,
@@ -168,32 +135,6 @@ function _concert_installed_fields() {
      'cardinality' => 1,
      'type' => 'text',
     ),
-    /**
-    'venue_node' => array(
-     'field_name' => 'venue_node',
-     'label' => 'Select a venue from the list',
-     'type' => 'list_integer',
-     'cardinality' => '1',
-     'foreign keys' => array(),
-     'indexes' => array(
-       'value' => array(
-        0 => 'value',
-       ),
-      ),
-     'module' => 'list',
-     'settings' => array(
-      'allowed_values_function' => '_concert_content_type_venue_options_list',
-      ),
-    ),
-    **/
-    /**
-    'venue_radio' => array(
-     'field_name' => 'venue_radio',
-     'cardinality' => 1,
-     'type' => 'list_boolean',
-     
-    )
-    **/
   );
 }
 
@@ -259,73 +200,6 @@ function _concert_installed_instances() {
        ),
      ),
     ),
-    /**
-    'concert_venue_node' => array(
-     'field_name' => 'concert_venue_node',
-     'bundle' => 'concert',
-     'label' => $t('Choose a venue'),
-     'widget' => array(
-      'active' => '1',
-      'module' => 'options',
-      'settings' => array(
-       'type' => 'options_select',
-       //'weight' => '-1',
-      ),
-     ),
-    ),
-    */
-    /**
-    'venue_node' => array(
-     'field_name' => 'venue_node',
-     'bundle' => 'concert',
-     'label' => $t('Choose a venue'),
-     'widget' => array(
-      'active' => '1',
-      'module' => 'options',
-      'settings' => array(
-       'type' => 'options_select',
-       //'weight' => '-1',
-      ),
-     ),
-    ),
-    **/
-    /**
-    'concert_venue_textfield_check' => array(
-      'field_name' => 'concert_venue_textfield_check',
-      'bundle' => 'concert',
-      'label' => $t('Enter venue manually'),
-      'widget' => array(
-        'type' => 'options_onoff',
-        'settings' => array(
-           'display_label' => 1,
-        ),
-      ),
-      'display' => array(
-        'concert_list' => array(
-          'label' => 'hidden',
-          'type' => 'hidden',
-        ),
-      ),
-    ),
-    
-    'concert_venue_location' => array(
-     'field_name' => 'concert_venue_location',
-     'bundle' => 'venue',
-     'label' => $t('Name of the venue'),
-     'widget' => array(
-      'type' => 'text_textfield',
-     ),
-    ),
-    
-    'concert_venue_city' => array(
-     'field_name' => 'concert_venue_city',
-     'bundle' => 'venue',
-     'label' => $t('City of the venue'),
-     'widget' => array(
-      'type' => 'text_textfield',
-     ),
-    ),
-    **/
     'venue_location' => array(
      'field_name' => 'venue_location',
      'bundle' => 'venue',
@@ -370,16 +244,6 @@ function _concert_installed_instances() {
       'type'=> 'text_textfield',
      ),
     ),
-    /**
-    'venue_radio' => array(
-     'field_name' => 'venue_radio',
-     'bundle' => 'concert',
-     'label' => $t('Choose'),
-     'widget' => array(
-      'type' => 'options_buttons',
-     )
-    )
-    **/
   );
 }
 
