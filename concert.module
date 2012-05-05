@@ -137,9 +137,6 @@ function concert_page($arg = NULL) {
 		$dateObject = new DateObject($row->concert_date_value, NULL, 'Y-m-d\TH:i:s');
 		$dateArray = $dateObject->toArray();
 	        
-		dpm($dateObject);
-		dpm($dateArray);
-		
 		if (isset($row->nid)) {
 		  $node = node_load($row->nid);
 		}
