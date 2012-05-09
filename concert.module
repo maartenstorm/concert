@@ -491,6 +491,41 @@ function concert_admin_form($form, &$form_state) {
     '#group' => 'concert_admin',
   );
   
+   $form['concert_admin_block']['date_style_settings'] = array(
+    '#title' => t('Date style settings'),
+    '#type' => 'fieldset',
+    //'#prefix' => '<div id="date-style-settings">',
+    //'#suffix' => '</div>',
+  );
+   
+  $block_selected_type = isset($form_state['values']['concert_admin_block_standard_type']) ? $types[$form_state['values']['concert_admin_block_standard_type']] : current($types);
+
+    
+    $form['concert_admin_block']['date_style_settings']['concert_admin_block_standard_type'] = array(
+      '#type' => 'select',
+      '#title' => t('Select date type'),
+      '#description' => t('Select a date type. Choose Concert for a collection of date formats automatically created by Concert module. Choose Custom when you created a date format of the custom type.'),
+      '#options' => $types,
+      '#default_value' => 0,
+      '#ajax' => array(
+	'callback' => 'concert_admin_form_ajax_block_date_form',
+	'wrapper' => 'block-date-format-select',
+	'event' => 'change',
+      ),
+    );
+    
+    //if (!empty($form_state['values']['concert_admin_standard_type']) && $form_state['values']['concert_admin_standard_type'])
+    $form['concert_admin_block']['date_style_settings']['concert_admin_block_standard_format'] = array(
+      '#type' => 'select',
+      '#title' => t('Date format'),
+      '#description' => t('Choose a date format. Or <a href="@link">create a date format here</a>.', array('@link' => url('admin/config/regional/date-time/formats/add'))),
+      //'#options' => concert_admin_date_format_populate($form_state['values']['concert_admin_standard_type']),
+      '#options' => concert_admin_date_format_populate($block_selected_type),
+      '#default_value' => variable_get('concert_admin_block_date_format', 0),
+      '#prefix' => '<div id="block-date-format-select">',
+      '#postfix' => '</div>',
+    );
+  
   
   // Submit button
   $form['submit'] = array(
@@ -532,13 +567,18 @@ function concert_admin_date_format_populate($date_type) {
   
   return $choices;
 }
+
 function concert_admin_ajax_form_callback($form, &$form_state) {
   return $form['concert_admin_list']['date_style_settings'];
 }
+
 function concert_admin_form_ajax_date_form($form, &$form_state) {
   return $form['concert_admin_list']['date_style_settings']['concert_admin_standard_format'];  
  }
  
+ function concert_admin_form_ajax_block_date_form($form, &$form_state) {
+  return $form['concert_admin_block']['date_style_settings']['concert_admin_block_standard_format'];
+ }
 /**
  * Save configuration settings
  */
@@ -554,6 +594,7 @@ function concert_admin_form_submit($form, &$form_state) {
   variable_set('concert_admin_venue_unknown', $form_state['values']['concert_admin_venue_unknown']);
   variable_set('concert_admin_table_header', $form_state['values']['concert_admin_table_header']);
   
+  variable_set('concert_admin_block_date_format', $form_state['values']['concert_admin_block_date_format']);
 }
 /**
  * Implements hook_form_alter()

@@ -47,16 +47,19 @@ td .item-list {
    width: 300px;
 }
 
-.form-item-concert-admin-standard-type {
+.form-item-concert-admin-standard-type,
+.form-item-concert-admin-block-standard-type {
    float: left;
-   width: 300;
+   width: 300px;
    margin-right: 48px !important;
 }
 
-.form-item-concert-admin-standard-type select {
+.form-item-concert-admin-standard-type select,
+.form-item-concert-admin-block-standard-type select {
    width: 300px;
 }
 
-.form-item-concert-admin-standard-format select {
+.form-item-concert-admin-standard-format select,
+.form-item-concert-admin-block-standard-format select {
    width: 300px;
 }
