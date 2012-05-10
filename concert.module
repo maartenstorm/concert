@@ -816,7 +816,7 @@ function concert_block_view($block_name = ''){
     $now = date('o-m-d',$time_stamp)."T".date('H:i:s',$time_stamp);
     
     //$result = concert_find_concerts(OPERATOR_COMING, 'ASC', 3);
-    $result = concert_get_concerts(OPERATOR_COMING, 'ASC', variable_get('concert_block_limit'));
+    $result = concert_get_concerts(OPERATOR_COMING, 'ASC', variable_get('concert_admin_block_limit'));
     
     /**
     if (isset($result['node'])) {
