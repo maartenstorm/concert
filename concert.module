@@ -14,6 +14,7 @@
  define("OPERATOR_COMING", ">=");
  define("OPERATOR_PAST", "<");
  define("PAGE_CONCERTS_LIMIT", 0);
+ define("CONCERT_BLOCK_LIMIT", 3);
  define("CONCERT_LIST_DATE_FORMAT_MONTH", "F");
  define("HOUR_MINUTE_SEPERATOR", ":");
  define("CONCERT_LIST_DATE_STYLE", 1);
@@ -145,7 +146,7 @@ function concert_page($arg = NULL) {
 	  );
 		  
 	  if ($node->concert_time_string) {
-	    // TODO: hier geen tijd weergeven, string weergeven bovenaan informatiecell
+	    // TODO: hier geen tijd weergeven, string weergeven bovenaan informatiecell?
 	    $items[] = array(
 	     'data' => $node->concert_time_string['und'][0]['value'],
 	     'class' => array('date_cell' => 'time_string')
@@ -184,8 +185,9 @@ function concert_page($arg = NULL) {
       $info_cell = array();
       // TODO: location in 2nd column, city in 3rd.
       $location = variable_get('concert_admin_venue_unknown');
-      $venue = concert_get_venue($node->nid);
+      $venue = concert_get_venue($node->nid, TRUE);
       
+      /**
       if (isset($venue[0]->concert_venue_check) && $venue[0]->concert_venue_check == 0) {
 	if ($venue[0]->concert_venue_node != "0") {
 	  $venue_node = node_load($venue[0]->concert_venue_node); // if... ?
@@ -198,6 +200,7 @@ function concert_page($arg = NULL) {
       } else if (isset($venue[0]->concert_venue_check) && $venue[0]->concert_venue_check == 1) {
 	$location = $venue[0]->concert_venue_location  . "<br/>" . $venue[0]->concert_venue_city;
       }
+      **/
       
       $rows[] = array(
 	'data' => array(
@@ -468,7 +471,6 @@ function concert_admin_form($form, &$form_state) {
   }
   
   
-  
   $form['concert_admin_list']['concert_admin_venue_unknown'] = array(
     '#type' => 'textfield',
     '#title' => t('Venue unknown string'),
@@ -500,31 +502,50 @@ function concert_admin_form($form, &$form_state) {
    
   $block_selected_type = isset($form_state['values']['concert_admin_block_standard_type']) ? $types[$form_state['values']['concert_admin_block_standard_type']] : current($types);
 
+  
+  $form['concert_admin_block']['date_style_settings']['concert_admin_block_limit'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number of concerts'),
+    '#description' => t('Enter the number of concerts to be shown in the concert block'),
+    '#default_value' => variable_get('concert_admin_block_limit', CONCERT_BLOCK_LIMIT),
+    '#size' => 10,
+    '#maxlength' => 2,
+  );
+  
     
-    $form['concert_admin_block']['date_style_settings']['concert_admin_block_standard_type'] = array(
-      '#type' => 'select',
-      '#title' => t('Select date type'),
-      '#description' => t('Select a date type. Choose Concert for a collection of date formats automatically created by Concert module. Choose Custom when you created a date format of the custom type.'),
-      '#options' => $types,
-      '#default_value' => 0,
-      '#ajax' => array(
-	'callback' => 'concert_admin_form_ajax_block_date_form',
-	'wrapper' => 'block-date-format-select',
-	'event' => 'change',
-      ),
-    );
+  $form['concert_admin_block']['date_style_settings']['concert_admin_block_standard_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Select date type'),
+    '#description' => t('Select a date type. Choose Concert for a collection of date formats automatically created by Concert module. Choose Custom when you created a date format of the custom type.'),
+    '#options' => $types,
+    '#default_value' => 0,
+    '#ajax' => array(
+      'callback' => 'concert_admin_form_ajax_block_date_form',
+      'wrapper' => 'block-date-format-select',
+      'event' => 'change',
+    ),
+  );
+  
+  $form['concert_admin_block']['date_style_settigns']['concert_admin_block_title'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show concert title'),
+    '#description' => t('Show concer title in concert block'),
+    '#default_value' => variable_get('concert_admin_block_title', 1),
+  );
+  
+  //if (!empty($form_state['values']['concert_admin_standard_type']) && $form_state['values']['concert_admin_standard_type'])
+  $form['concert_admin_block']['date_style_settings']['concert_admin_block_date_format'] = array(
+    '#type' => 'select',
+    '#title' => t('Date format'),
+    '#description' => t('Choose a date format. Or <a href="@link">create a date format here</a>.', array('@link' => url('admin/config/regional/date-time/formats/add'))),
+    //'#options' => concert_admin_date_format_populate($form_state['values']['concert_admin_standard_type']),
+    '#options' => concert_admin_date_format_populate($block_selected_type),
+    '#default_value' => variable_get('concert_admin_block_date_format', CONCERT_LIST_DATE_FORMAT),
+    '#prefix' => '<div id="block-date-format-select">',
+    '#postfix' => '</div>',
+  );
     
-    //if (!empty($form_state['values']['concert_admin_standard_type']) && $form_state['values']['concert_admin_standard_type'])
-    $form['concert_admin_block']['date_style_settings']['concert_admin_block_standard_format'] = array(
-      '#type' => 'select',
-      '#title' => t('Date format'),
-      '#description' => t('Choose a date format. Or <a href="@link">create a date format here</a>.', array('@link' => url('admin/config/regional/date-time/formats/add'))),
-      //'#options' => concert_admin_date_format_populate($form_state['values']['concert_admin_standard_type']),
-      '#options' => concert_admin_date_format_populate($block_selected_type),
-      '#default_value' => variable_get('concert_admin_block_date_format', 0),
-      '#prefix' => '<div id="block-date-format-select">',
-      '#postfix' => '</div>',
-    );
+    
   
   
   // Submit button
@@ -577,7 +598,7 @@ function concert_admin_form_ajax_date_form($form, &$form_state) {
  }
  
  function concert_admin_form_ajax_block_date_form($form, &$form_state) {
-  return $form['concert_admin_block']['date_style_settings']['concert_admin_block_standard_format'];
+  return $form['concert_admin_block']['date_style_settings']['concert_admin_block_date_format'];
  }
 /**
  * Save configuration settings
@@ -595,13 +616,22 @@ function concert_admin_form_submit($form, &$form_state) {
   variable_set('concert_admin_table_header', $form_state['values']['concert_admin_table_header']);
   
   variable_set('concert_admin_block_date_format', $form_state['values']['concert_admin_block_date_format']);
+  variable_set('concert_admin_block_limit', $form_state['values']['concert_admin_block_limit']);
+  variable_set('concert_admin_block_title', $form_state['values']['concert_admin_block_title']);
 }
 /**
  * Implements hook_form_alter()
  *
  * hide the concert_year field from the form
  */
-function concert_form_alter(&$form, &$form_state, $form_id) { 
+function concert_form_alter(&$form, &$form_state, $form_id) {
+  $form['test_form_id'] = array(
+    '#type' => 'item',
+    '#title' => t('Form ID'),
+    '#markup' => $form_id,
+    '#weight' => -100,
+  );
+  
   if($form_id == "concert_node_form") {
     $form['title']['#title'] = t('New Form Title');
 	
@@ -785,25 +815,46 @@ function concert_block_view($block_name = ''){
     $time_stamp = time();
     $now = date('o-m-d',$time_stamp)."T".date('H:i:s',$time_stamp);
     
-    $result = concert_find_concerts(OPERATOR_COMING, 'ASC', 3);
+    //$result = concert_find_concerts(OPERATOR_COMING, 'ASC', 3);
+    $result = concert_get_concerts(OPERATOR_COMING, 'ASC', variable_get('concert_block_limit'));
     
+    /**
     if (isset($result['node'])) {
       $items_nids = array_keys($result['node']);
       $items = entity_load('node', $items_nids);
     }
     
+    
     foreach ($result as $row) { 
       $block['content']['concerts'][] = node_view_multiple($items, 'concert_list');
     }
+    **/
     
     $block['subject'] = t('Upcoming concerts');
-	    
-    /**
+
+    $items = array();
+    
+    foreach ($result as $row) {
+      
+      $dateObject = new DateObject($row->concert_date_value, NULL, 'Y-m-d\TH:i:s');
+      
+      $date = date_format_date($dateObject, 'custom', variable_get('concert_admin_block_date_format'));
+      $item = array();
+      $item['children'][] = $date;
+      if (variable_get('concert_admin_block_title')) $item[] = $row->title;
+      $item['children'][] = concert_get_venue($row->nid, TRUE);
+      
+      $items[] = $item;
+
+    }
+    
+    
     $block['content']['list'] = array(
       '#theme' => 'item_list',
-      '#items' => $items,
+      '#items' =>  $items,
     );
-    **/
+    
+    
     
     $block['content']['more'] = array(
       '#theme' => 'more_link',
@@ -815,7 +866,7 @@ function concert_block_view($block_name = ''){
   }
 }
 
-function concert_find_concerts($operator, $order = 'ASC', $limit = 0, $year) {
+function concert_find_concerts($operator, $order = 'ASC', $limit = 0, $year = NULL) {
   $time_stamp = time();
   $now = date('o-m-d',$time_stamp)."T".date('H:i:s',$time_stamp);
   
@@ -855,12 +906,45 @@ function concert_get_years($show_archive, $now) {
   return $result;
 }
 
-function concert_get_venue($nid) {
+function concert_get_venue($nid, $string = TRUE) {
+  
+  $venue = variable_get('concert_admin_venue_unknown');
   $result = db_query('SELECT * FROM {concert_venue} WHERE nid = :nid', array(':nid' => $nid))->fetchAll();
-  return $result;
+  
+  if ($string) { 
+    if (isset($result[0]->concert_venue_check) && $result[0]->concert_venue_check == 0) { //db
+      if ($result[0]->concert_venue_node != "0") {
+	$node = node_load($result[0]->concert_venue_node); // if... ?
+	if ($node->title) {
+	  $venue = $node->title;
+	} else if ($node->location && $node->city) {
+	  $venue = $node->venue_location[0]['und']['value'] . "<br/>" . $node->venue_city[0]['und']['value'];
+	}
+      }	
+    } else if (isset($result[0]->concert_venue_check) && $result[0]->concert_venue_check == 1) { //manually
+      $venue = $result[0]->concert_venue_location  . "<br/>" . $result[0]->concert_venue_city;
+    }
+    return $venue;
+  }
+    
+  if (!$string) {
+    if (isset($result[0]->concert_venue_check) && $result[0]->concert_venue_check == 0) {
+      if ($result[0]->concert_venue_node != "0") {
+	$node = node_load($result[0]->concert_venue_node); // if... ?
+	if ($node->location && $node->city) {
+	  $venue_array = array(
+	    'location' => $node->location,
+	    'city' => $node->city,
+	  );
+	}
+      }
+    }
+    return $venue_array;
+  }
 }
 
-function concert_get_concerts($operator, $order, $limit, $year) {
+
+function concert_get_concerts($operator, $order, $limit, $year = NULL ) {
   $time_stamp = time();
   $now = date('o-m-d',$time_stamp)."T".date('H:i:s',$time_stamp);
   
@@ -868,17 +952,21 @@ function concert_get_concerts($operator, $order, $limit, $year) {
   $query->join('field_data_concert_date', 'f', 'n.nid = f.entity_id');
   $query
     ->fields('n', array('nid', 'title'))
-	->addField('f', 'concert_date_value');	
+    ->addField('f', 'concert_date_value');	
   $query	
     ->condition('n.type', 'concert')
-	->condition('n.status', 1)
-	->where('EXTRACT(YEAR FROM f.concert_date_value) = :year', array('year' => $year))
-  	->condition('f.concert_date_value', $now, $operator)
-	
-	->orderBy('f.concert_date_value', $order);
+    ->condition('n.status', 1);
+  
+  if ($year)
+    $query
+      ->where('EXTRACT(YEAR FROM f.concert_date_value) = :year', array('year' => $year));
+  
+  $query
+    ->condition('f.concert_date_value', $now, $operator)	
+    ->orderBy('f.concert_date_value', $order);
     
   if ($limit)
-	$query->range(0, $limit);
+    $query->range(0, $limit);
 	
   $result = $query->execute();
   return $result;
