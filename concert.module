@@ -176,8 +176,8 @@ function concert_page($arg = NULL) {
 	    'data' => array(
 	      '#type' => 'markup',
 	      '#markup' => $items,
-	      '#prefix' => '<div class="date">',
-	      '#suffix' => '</div>'
+	      '#prefix' => '<div class="date expand">',
+	      '#suffix' => '</div>',
 	      ),	       
 	  );
 	}
@@ -368,14 +368,18 @@ function concert_admin_form($form, &$form_state) {
     '#type' => 'fieldset',
     '#title' => t('General settings'),
     '#group' => 'concert_admin',
-    '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
-    '#tree' => TRUE,
+    //'#collapsible' => TRUE,
+    //'#collapsed' => TRUE,
+    //'#tree' => TRUE,
   );
-  $form['concert_admin_general']['test'] = array(
+  
+  $form['concert_admin_general']['concert_admin_venue_unknown'] = array(
     '#type' => 'textfield',
-    '#title' => 'test',
-    
+    '#title' => t('Venue unknown string'),
+    '#description' => t('Value to be shown when venue is unknown.'),
+    '#default_value' => variable_get('concert_admin_venue_unknown', CONCERT_VENUE_UNKNOWN_STRING),
+    '#size' => 200,
+    '#maxlength' => 200,
   );
   
   $form['concert_admin_list'] = array(
@@ -384,6 +388,18 @@ function concert_admin_form($form, &$form_state) {
     '#group' => 'concert_admin',
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
+  );
+  
+  $form['concert_admin_list']['table_options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Table options'),  
+  );
+  
+  $form['concert_admin_list']['table_options']['concert_admin_table_header'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show header in concert list table'),
+    '#description' => t('Select this option to show header in concert list table'),
+    '#default_value' => variable_get('concert_admin_table_header', CONCERT_LIST_TABLE_HEADER),
   );
   
   $form['concert_admin_list']['concert_admin_date_style'] = array(
@@ -408,8 +424,6 @@ function concert_admin_form($form, &$form_state) {
   foreach ($format_types as $type => $type_info) {
     $types[] = $type;
   }
-  
-  
   
   $form['concert_admin_list']['date_style_settings'] = array(
     '#title' => t('Date style settings'),
@@ -470,27 +484,26 @@ function concert_admin_form($form, &$form_state) {
     
   }
   
-  
-  $form['concert_admin_list']['concert_admin_venue_unknown'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Venue unknown string'),
-    '#description' => t('Value to be shown when venue is unknown.'),
-    '#default_value' => variable_get('concert_admin_venue_unknown', CONCERT_VENUE_UNKNOWN_STRING),
-    '#size' => 200,
-    '#maxlength' => 200,
-  );
-  
-  $form['concert_admin_list']['concert_admin_table_header'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Show header in concert list table'),
-    '#description' => t('Select this option to show header in concert list table'),
-    '#default_value' => variable_get('concert_admin_table_header', CONCERT_LIST_TABLE_HEADER),
-  );
-  
   $form['concert_admin_block'] = array(
     '#type' => 'fieldset',
     '#title' => t('Concert block settings'),
     '#group' => 'concert_admin',
+  );
+  
+   $form['concert_admin_block']['concert_admin_block_limit'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number of concerts'),
+    '#description' => t('Enter the number of concerts to be shown in the concert block'),
+    '#default_value' => variable_get('concert_admin_block_limit', CONCERT_BLOCK_LIMIT),
+    '#size' => 10,
+    '#maxlength' => 2,
+  );
+   
+  $form['concert_admin_block']['concert_admin_block_title'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show concert title'),
+    '#description' => t('Show concert title in concert block'),
+    '#default_value' => variable_get('concert_admin_block_title', 1),
   );
   
    $form['concert_admin_block']['date_style_settings'] = array(
@@ -503,14 +516,7 @@ function concert_admin_form($form, &$form_state) {
   $block_selected_type = isset($form_state['values']['concert_admin_block_standard_type']) ? $types[$form_state['values']['concert_admin_block_standard_type']] : current($types);
 
   
-  $form['concert_admin_block']['date_style_settings']['concert_admin_block_limit'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Number of concerts'),
-    '#description' => t('Enter the number of concerts to be shown in the concert block'),
-    '#default_value' => variable_get('concert_admin_block_limit', CONCERT_BLOCK_LIMIT),
-    '#size' => 10,
-    '#maxlength' => 2,
-  );
+ 
   
     
   $form['concert_admin_block']['date_style_settings']['concert_admin_block_standard_type'] = array(
@@ -526,12 +532,7 @@ function concert_admin_form($form, &$form_state) {
     ),
   );
   
-  $form['concert_admin_block']['date_style_settigns']['concert_admin_block_title'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Show concert title'),
-    '#description' => t('Show concer title in concert block'),
-    '#default_value' => variable_get('concert_admin_block_title', 1),
-  );
+  
   
   //if (!empty($form_state['values']['concert_admin_standard_type']) && $form_state['values']['concert_admin_standard_type'])
   $form['concert_admin_block']['date_style_settings']['concert_admin_block_date_format'] = array(
@@ -544,9 +545,6 @@ function concert_admin_form($form, &$form_state) {
     '#prefix' => '<div id="block-date-format-select">',
     '#postfix' => '</div>',
   );
-    
-    
-  
   
   // Submit button
   $form['submit'] = array(

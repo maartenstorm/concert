@@ -10,6 +10,25 @@
       $(this).parents('tr.parent').nextUntil('tr.parent').slideToggle("fast");
    });
 
+   $('tr').hover(function () {
+      $(this).css('cursor', 'default');
+    } ,function() {
+      $(this).css('cursor', 'auto');
+   });
+  
+   $('td.expand').hover(function () {
+      $(this).css('cursor', 'pointer');
+    } ,function() {
+      $(this).css('cursor', 'auto');  
+   });
+   
+   $('td .expand').hover(function () {
+      $(this).css('cursor', 'pointer');
+   } ,function() {
+      $(this).css('cursor', 'auto');
+   });
+   
+   
 
 })
 
